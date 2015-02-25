@@ -4,14 +4,28 @@
 		tinymce.init({
 			menubar:false,
 			plugins: [
-		                "table textcolor code"
+		                "table textcolor code print"
 		    ],
-		    width: 800,
+		    width: 1000,
+            height: 800,
 		    selector: "textarea",
-		    toolbar1: "cut copy paste | searchreplace | bullist numlist | outdent indent blockquote | undo redo | link unlink anchor image media code | inserttime preview | table",
+		    toolbar1: "print | cut copy paste | searchreplace | bullist numlist | outdent indent blockquote | undo redo | link unlink anchor image media code | inserttime preview | table",
 	        toolbar2: "bold italic underline strikethrough |formatselect fontselect fontsizeselect | alignleft aligncenter alignright alignjustify | forecolor backcolor",
 		});
 		</script>
+        <style>
+        #mce_fullscreen_container {
+            background:none;
+            background: rgba(0, 0, 0, 0.6);
+            -ms-filter:progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000,endColorstr=#99000000);
+            filter:progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000,endColorstr=#99000000);
+            zoom: 1;
+        }
+
+        table#mce_fullscreen_tbl.mceLayout {
+            margin: 20px auto 0;
+        }
+        </style>
 
 <g:hiddenField name="status" value="draft"/>
 <table>

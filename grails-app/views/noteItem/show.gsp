@@ -15,8 +15,7 @@
 				    height: 600,
 				    selector: "textarea",
 				    readonly: 1,
-				    toolbar:false,
-				    statusbar:false,
+				    statusbar:false
 				});
 			</script>
 			<script>
