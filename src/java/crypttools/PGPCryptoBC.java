@@ -1,19 +1,13 @@
 package crypttools;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.Security;
+import java.security.SignatureException;
 import java.util.Iterator;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.BCPGOutputStream;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -69,6 +63,8 @@ import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentVerifierBuilderProv
  * 
  * @author franz
  *	Edited for use in OpenLabFramework and store keys on domain class instead of files
+ * @author markus list
+ *  Edited for supporting detached signatures.
  */
 public class PGPCryptoBC {
 	
@@ -138,6 +134,7 @@ public class PGPCryptoBC {
         PGPLiteralDataGenerator literalDataGenerator = new PGPLiteralDataGenerator();
         File fileToSign = File.createTempFile("temp",".scrap");
         FileUtils.writeStringToFile(fileToSign, data);
+
         
         OutputStream literalDataGenOutputStream = literalDataGenerator.open(bcOutputStream, PGPLiteralData.BINARY, fileToSign);
         FileInputStream fis = new FileInputStream(fileToSign);
@@ -270,6 +267,77 @@ public class PGPCryptoBC {
         }
         else {
             throw new IllegalArgumentException("Can't find signing key in key ring.");
+        }
+    }
+
+    public String signDataDetached(String data, String passphrase) throws Exception {
+        Security.addProvider(new BouncyCastleProvider());
+        InputStream keyInputStream = new ByteArrayInputStream(this.armoredSecretKey);
+
+        PGPSecretKey pgpSecretKey = readSecretKey(keyInputStream);
+        PGPPrivateKey pgpPrivateKey = pgpSecretKey.extractPrivateKey(new JcePBESecretKeyDecryptorBuilder().setProvider("BC").build(passphrase.toCharArray()));
+        PGPSignatureGenerator signatureGenerator = new PGPSignatureGenerator(new JcaPGPContentSignerBuilder(pgpSecretKey.getPublicKey().getAlgorithm(), PGPUtil.SHA1).setProvider("BC"));
+        signatureGenerator.init(PGPSignature.BINARY_DOCUMENT, pgpPrivateKey);
+
+        ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
+        OutputStream outputStream = new ArmoredOutputStream(byteOutputStream);
+        BCPGOutputStream bOut = new BCPGOutputStream(outputStream);
+
+        InputStream fIn = IOUtils.toInputStream(data, "UTF-8");
+        int ch;
+        while ((ch = fIn.read()) >= 0) {
+            signatureGenerator.update((byte)ch);
+        }
+
+        fIn.close();
+
+        signatureGenerator.generate().encode(bOut);
+
+        outputStream.close();
+        keyInputStream.close();
+
+        return new String(byteOutputStream.toByteArray(), "UTF-8");
+    }
+
+    public boolean verifyFileDetached(String data, String signature, String publicKey) throws Exception {
+        Security.addProvider(new BouncyCastleProvider());
+
+        InputStream keyInputStream = new BufferedInputStream(IOUtils.toInputStream(publicKey, "UTF-8"));
+        InputStream sigInputStream = PGPUtil.getDecoderStream(new BufferedInputStream(IOUtils.toInputStream(signature, "UTF-8")));
+
+        PGPObjectFactory pgpObjFactory = new PGPObjectFactory(sigInputStream);
+        PGPSignatureList pgpSigList = null;
+
+        Object obj = pgpObjFactory.nextObject();
+        if (obj instanceof PGPCompressedData) {
+            PGPCompressedData c1 = (PGPCompressedData)obj;
+            pgpObjFactory = new PGPObjectFactory(c1.getDataStream());
+            pgpSigList = (PGPSignatureList)pgpObjFactory.nextObject();
+        }
+        else {
+            pgpSigList = (PGPSignatureList)obj;
+        }
+
+        PGPPublicKeyRingCollection pgpPubRingCollection = new PGPPublicKeyRingCollection(PGPUtil.getDecoderStream(keyInputStream));
+        InputStream  fileInputStream = new BufferedInputStream(IOUtils.toInputStream(data, "UTF-8"));
+        PGPSignature sig = pgpSigList.get(0);
+        PGPPublicKey pubKey = pgpPubRingCollection.getPublicKey(sig.getKeyID());
+        sig.init(new JcaPGPContentVerifierBuilderProvider().setProvider("BC"), pubKey);
+
+        int ch;
+        while ((ch = fileInputStream.read()) >= 0) {
+            sig.update((byte)ch);
+        }
+
+        fileInputStream.close();
+        keyInputStream.close();
+        sigInputStream.close();
+
+        if (sig.verify()) {
+            return true;
+        }
+        else {
+            return false;
         }
     }
 }

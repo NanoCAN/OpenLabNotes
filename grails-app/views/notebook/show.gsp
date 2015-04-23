@@ -5,19 +5,21 @@
 <head>
 	<g:setProvider library="prototype"/>
 	<meta name="layout" content="${params.bodyOnly?'body':'main'}" />
-	<g:set var="entityName" value="${message(code: 'noteItem.label', default: 'NoteItem')}" />
-	<title><g:message code="default.list.label" args="[entityName]" /></title>
+	<g:set var="entityName" value="${message(code: 'notebook.label', default: 'Notebook')}" />
+	<title><g:message code="default.show.label" args="[entityName]" /></title>
 	<r:require module="export"/>
 </head>
 <body>
 <script>
 	tinymce.init({
 		menubar:false,
-		statusbar: false,
-		toolbar: false,
-		width: 200,
-		height: 100,
-		selector: "textarea"
+		plugins: [
+			"table textcolor code print"
+		],
+		width: 1000,
+		height: 600,
+		selector: "textarea",
+		toolbar1: "print | copy | search"
 	});
 	tinymce.activeEditor.getBody().setAttribute('contenteditable', false);
 </script>
@@ -25,36 +27,19 @@
 <div class="nav" role="navigation">
 	<ul>
 		<li><a class="home" href="${createLink(uri: '/')}"><g:message code="default.home.label"/></a></li>
-		<li><g:remoteLink params="${[bodyOnly: true]}" update="body" class="create" action="create"><g:message code="default.new.label" args="[entityName]" /></g:remoteLink></li>
+		<li><g:remoteLink params="${[bodyOnly: true, notebook: notebookInstance]}" update="body" controller="noteItem" class="create" action="create">Add new note</g:remoteLink></li>
+		<li><g:remoteLink params="${[bodyOnly: true]}" update="body" class="edit" action="edit"><g:message code="default.edit.label" args="[entityName]" /></g:remoteLink></li>
+		<li><g:submitToRemote params="${[bodyOnly: true]}" update="body" action="delete" name="delete" class="delete" value="${message(code: 'default.button.delete.label', default: 'Delete')}" before="if(!confirm('Are you sure yu want to delete this notebook?')) return false"/></li>
 	</ul>
 </div>
 <div id="list-noteItem" class="content scaffold-list" role="main">
-	<h1><g:message code="default.list.label" args="[entityName]" /></h1>
+	<h1>Notebook ${notebookInstance.title}</h1>
 	<g:if test="${flash.message}">
 		<div class="message" role="status">${flash.message}</div>
 	</g:if>
-
-	<div id="filter" class="boxShadow">
-		<h2>Filter options:</h2>
-		<div style="padding:15px;"/>
-		<g:formRemote update="body" name="filterList" url="[controller: 'noteItem', action:'list']">
-			<g:hiddenField name="bodyOnly" value="${true}"/>
-			Results per page: <g:select name="max" value="${params.max?:10}" from="${10..100}" class="range"/>
-
-			Creator: <g:select name="creatorFilter" from="${org.openlab.security.User.list().collect{it.username}}"
-							   value="${params.creatorFilter?:''}" noSelection="['':'']"/>
-
-
-			Last Modifier: <g:select name="lastModifierFilter" from="${org.openlab.security.User.list().collect{it.username}}"
-									 value="${params.lastModifierFilter?:''}" noSelection="['':'']"/>
-
-
-			Project: <g:select name="projectFilter" from="${org.openlab.main.Project.list().collect{it.name}}"
-							   value="${params.projectFilter?:''}" noSelection="['':'']"/>
-
-			<g:submitButton name="Filter"/>
-		</g:formRemote>
-	</div>
+</div>
+<div class="pagination">
+	<g:remotePaginate total="${noteItemInstanceTotal?:0}" params="${params}" />
 </div>
 
 <table>
@@ -76,9 +61,6 @@
 		<g:remoteSortableColumn property="title" params="${params}" title="${message(code: 'noteItem.title.label', default: 'Title')}" />
 
 		<th/>
-
-		<g:remoteSortableColumn property="note" params="${params}" title="${message(code: 'noteItem.note.label', default: 'Note Preview')}" />
-
 	</tr>
 	</thead>
 	<tbody>
@@ -105,13 +87,12 @@
 			</g:editInPlace>
 			</td>
 
-			<td><g:remoteLink params="${[bodyOnly: true]}" action="show" id="${noteItemInstance.id}" update="body">show</g:remoteLink></td>
-
-			<td>
+			<td><g:remoteLink params="${[bodyOnly: true]}" action="show" id="${noteItemInstance.id}" update="body">show details</g:remoteLink></td>
+		</tr>
+		<tr>
+			<td colspan="8">
 				<textarea name="note_${noteItemInstance.id}">${fieldValue(bean: noteItemInstance, field: "note")}</textarea>
 			</td>
-
-
 		</tr>
 	</g:each>
 	</tbody>
@@ -119,7 +100,7 @@
 <div class="pagination">
 	<g:remotePaginate total="${noteItemInstanceTotal?:0}" params="${params}" />
 </div>
-<export:formats params="${params}"/>
+
 </div>
 <script type="text/javascript">
 	olfEvHandler.bodyContentChangedEvent.fire("${noteItemInstance?.toString()}");

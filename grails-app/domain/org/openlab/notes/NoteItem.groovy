@@ -1,37 +1,42 @@
 package org.openlab.notes
 
 import org.openlab.main.DataObject
-import org.openlab.genetracker.CellLine
-import org.openlab.genetracker.CellLineData
-import org.openlab.genetracker.Recombinant
 import org.openlab.security.User
+import org.openlab.main.Project
 
 class NoteItem extends DataObject{
 	String title
 	String status
 	String note
-	String authorSignedData
-	String supervisorSignedData
+	String authorSignature
+	String supervisorSignature
+	Date finalizedDate
+	Date supervisorSignedDate
 	User supervisor
-	
-	static hasMany = [cellLine: CellLine, cellLineData: CellLineData, recombinant: Recombinant]
-	
+
+	static hasMany = [dataObjects: DataObject, notebooks: Notebook]
+	static belongsTo = [Notebook, Project]
+
 	String toString(){
 		title
 	}
+
+	static searchable = true
 	
     static constraints = {
 		title blank: false
 		note blank: false
-		authorSignedData nullable: true
-		supervisorSignedData nullable: true
+		authorSignature nullable: true
+		supervisorSignature nullable: true
+		finalizedDate nullable: true
+		supervisorSignedDate nullable: true
 		supervisor nullable: true
 		status inList:["draft", "final", "signed"]
     }
 	static mapping = {
 		note type: 'text'
-		authorSignedData type: 'text'
-		supervisorSignedData type: 'text'
+		authorSignature type: 'text'
+		supervisorSignature type: 'text'
 		table 'olfNoteItem'
 	}
 

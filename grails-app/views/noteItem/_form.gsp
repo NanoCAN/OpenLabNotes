@@ -4,8 +4,10 @@
 		tinymce.init({
 			menubar:false,
 			plugins: [
-		                "table textcolor code print"
+		                "table textcolor code print paste"
 		    ],
+			paste_retain_style_properties: "all",
+			paste_data_images: true,
 		    width: 1000,
             height: 800,
 		    selector: "textarea",

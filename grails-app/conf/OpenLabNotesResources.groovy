@@ -10,6 +10,8 @@ modules = {
 		resource url: 'js/tinymce/plugins/code/plugin.min.js'
         resource url: 'js/tinymce/plugins/fullscreen/plugin.min.js'
         resource url: 'js/tinymce/plugins/print/plugin.min.js'
+		resource url: 'js/tinymce/plugins/paste/plugin.min.js'
+		resource url: 'js/tinymce/plugins/paste/plugin.js'
         resource url: 'js/tinymce/plugins/contextmenu/plugin.min.js'
 	}
 }

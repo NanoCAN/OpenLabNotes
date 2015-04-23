@@ -20,9 +20,12 @@ class NoteMenuModule implements MenuModule{
                 {
                     submenu(label: 'Notes')
                             {
-                                menuitem(controller: controller, action: 'create', label: 'Create new Note')
-                                menuitem(controller: controller, action: 'list', label: 'List your notes')
-								menuitem(controller: controller, action: 'listSupervisor', label: 'List notes to sign')
+                                menuitem(controller: "notebook", action: 'list', label: 'List notebooks')
+                                menuitem(controller: controller, action: 'create', label: 'Create new note')
+                                menuitem(controller: controller, action: 'list', label: 'List own notes')
+                                menuitem(controller: controller, action: 'listSharedNotes', label: 'List notes shared with me')
+								menuitem(controller: controller, action: 'listSignedAsSupervisor', label: 'List notes signed as supervisor')
+                                menuitem(controller: controller, action: 'listNotesToSign', label: 'List notes I need to sign')
                             }
                 }
 

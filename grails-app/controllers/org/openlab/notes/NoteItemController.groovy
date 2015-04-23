@@ -1,67 +1,242 @@
 package org.openlab.notes
 
-//import crypttools.PGPTools
-
-
-//import java.security.KeyPair;
-//import java.security.KeyPairGenerator;
-//import java.security.PrivateKey;
-//import java.security.PublicKey;
-//import java.security.SecureRandom;
-//import java.security.Security;
-//import java.security.Signature;
-import javax.crypto.SecretKeyFactory
-
-
-
-//import cr.co.arquetipos.crypto.*
-
+import org.docx4j.openpackaging.io.SaveToZipFile
+import org.openlab.main.DataObject
 import crypttools.PGPCryptoBC
-
-import java.security.KeyPair
-import java.security.MessageDigest
-
 import org.openlab.security.User
-
-import java.security.NoSuchAlgorithmException
-
 import org.springframework.dao.DataIntegrityViolationException
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
-import org.springframework.security.core.Authentication
-import org.springframework.security.core.AuthenticationException
-import org.springframework.security.core.context.SecurityContextHolder
+import org.hibernate.criterion.CriteriaSpecification
+import org.openlab.main.Project
+import org.docx4j.convert.out.pdf.viaXSLFO.PdfSettings
+import org.docx4j.openpackaging.packages.WordprocessingMLPackage
+
 
 class NoteItemController {
+
+	def scaffold = true
 
     static allowedMethods = [save: "POST", update: "POST", delete: "POST", finalize: "POST"]
 
 	transient springSecurityService
 	
     def noteAccessService
+	def noteEncryptionService
+	def noteExportService
 
     def index() {
         redirect(action: "list", params: params)
     }
-	def list = {
+	def list(){
 		User loggedInUser = springSecurityService.currentUser
-		//params.max = Math.min(params.max ? params.int('max') : 10, 100)
-		def notesList = NoteItem.findAllByCreator(loggedInUser, [sort: "id", order: "desc"])
-		//[noteItemInstanceList: NoteItem.list(params), noteItemInstanceTotal: NoteItem.count(), bodyOnly: true]
-		[noteItemInstanceList: notesList, noteItemInstanceTotal: NoteItem.count(), bodyOnly: true]
-	}
-	def listSupervisor = {
+		params.max = Math.min(params.max ? params.int('max') : 10, 100)
+		params.offset = params.offset?:0
+
+		def noteItemInstanceList = NoteItem.findAllByCreator(loggedInUser, [sort: "id", order: "asc"])
+		def noteItemInstanceListTotal = noteItemInstanceList?.size()?:0
+		if (params.int('offset') > noteItemInstanceListTotal) params.offset = 0
+
+		if(noteItemInstanceListTotal > 0)
+		{
+			int rangeMin = Math.min(noteItemInstanceListTotal, params.int('offset'))
+			int rangeMax = Math.min(noteItemInstanceListTotal, (params.int('offset') + params.int('max')))
+
+			noteItemInstanceList = noteItemInstanceList.asList()
+			noteItemInstanceList.sort{ a,b -> a.id <=> b.id}
+			if(params.order == "desc") noteItemInstanceList = noteItemInstanceList.reverse()
+
+			noteItemInstanceList = noteItemInstanceList.asList().subList(rangeMin, rangeMax)
+		}
+
+		[noteItemInstanceList: noteItemInstanceList, noteItemInstanceTotal: noteItemInstanceListTotal, bodyOnly: true]	}
+
+	def listSharedNotes(){
 		User loggedInUser = springSecurityService.currentUser
-		//params.max = Math.min(params.max ? params.int('max') : 10, 100)
-		def notesList = NoteItem.findAllBySupervisor(loggedInUser, [sort: "id", order: "desc"])
-		//[noteItemInstanceList: NoteItem.list(params), noteItemInstanceTotal: NoteItem.count(), bodyOnly: true]
-		[noteItemInstanceList: notesList, noteItemInstanceTotal: NoteItem.count(), bodyOnly: true]
+		params.max = Math.min(params.max ? params.int('max') : 10, 100)
+		params.offset = params.offset?:0
+
+		def noteItemInstanceList = NoteItem.withCriteria{
+			createAlias("shared", "sh", CriteriaSpecification.LEFT_JOIN)
+			eq 'sh.username', loggedInUser.username
+			order("id", "asc")
+		}
+		def noteItemInstanceListTotal = noteItemInstanceList?.size()?:0
+		if (params.int('offset') > noteItemInstanceListTotal) params.offset = 0
+
+		if(noteItemInstanceListTotal > 0)
+		{
+			int rangeMin = Math.min(noteItemInstanceListTotal, params.int('offset'))
+			int rangeMax = Math.min(noteItemInstanceListTotal, (params.int('offset') + params.int('max')))
+
+			noteItemInstanceList = noteItemInstanceList.asList()
+			noteItemInstanceList.sort{ a,b -> a.id <=> b.id}
+			if(params.order == "desc") noteItemInstanceList = noteItemInstanceList.reverse()
+
+			noteItemInstanceList = noteItemInstanceList.asList().subList(rangeMin, rangeMax)
+		}
+
+		render view: "list", model: [noteItemInstanceList: noteItemInstanceList, noteItemInstanceTotal: noteItemInstanceListTotal, bodyOnly: true]
 	}
+
+	def listSignedAsSupervisor(){
+		User loggedInUser = springSecurityService.currentUser
+		params.max = Math.min(params.max ? params.int('max') : 10, 100)
+		params.offset = params.offset?:0
+
+		def noteItemInstanceList = NoteItem.findAllBySupervisorAndStatus(loggedInUser, "signed", [sort: "id", order: "asc"])
+		def noteItemInstanceListTotal = noteItemInstanceList?.size()?:0
+		if (params.int('offset') > noteItemInstanceListTotal) params.offset = 0
+
+		if(noteItemInstanceListTotal > 0)
+		{
+			int rangeMin = Math.min(noteItemInstanceListTotal, params.int('offset'))
+			int rangeMax = Math.min(noteItemInstanceListTotal, (params.int('offset') + params.int('max')))
+
+			noteItemInstanceList = noteItemInstanceList.asList()
+			noteItemInstanceList.sort{ a,b -> a.id <=> b.id}
+			if(params.order == "desc") noteItemInstanceList = noteItemInstanceList.reverse()
+
+			noteItemInstanceList = noteItemInstanceList.asList().subList(rangeMin, rangeMax)
+		}
+
+		render view: "list", model: [noteItemInstanceList: noteItemInstanceList, noteItemInstanceTotal: noteItemInstanceListTotal, bodyOnly: true]	}
+
+	def listNotesToSign(){
+		User loggedInUser = springSecurityService.currentUser
+		params.max = Math.min(params.max ? params.int('max') : 10, 100)
+		params.offset = params.offset?:0
+
+		def noteItemInstanceList = NoteItem.findAllBySupervisorAndStatus(loggedInUser, "final", [sort: "id", order: "asc"])
+		def noteItemInstanceListTotal = noteItemInstanceList?.size()?:0
+		if (params.int('offset') > noteItemInstanceListTotal) params.offset = 0
+
+		if(noteItemInstanceListTotal > 0)
+		{
+			int rangeMin = Math.min(noteItemInstanceListTotal, params.int('offset'))
+			int rangeMax = Math.min(noteItemInstanceListTotal, (params.int('offset') + params.int('max')))
+
+			noteItemInstanceList = noteItemInstanceList.asList()
+			noteItemInstanceList.sort{ a,b -> a.id <=> b.id}
+			if(params.order == "desc") noteItemInstanceList = noteItemInstanceList.reverse()
+
+			noteItemInstanceList = noteItemInstanceList.asList().subList(rangeMin, rangeMax)
+		}
+
+		render view: "list", model: [noteItemInstanceList: noteItemInstanceList, noteItemInstanceTotal: noteItemInstanceListTotal, bodyOnly: true]	}
+
+	/**
+	 * export note to docx
+	 */
+	def exportToDocx(){
+
+		def noteItemInstance = NoteItem.get(params.id)
+		if (!noteItemInstance) {
+			flash.message = "${message(code: 'default.not.found.message', args: [message(code: 'noteItem.label', default: 'Note'), params.id])}"
+			redirect(action: "show")
+		}
+		else {
+			    def wp = noteExportService.convertNoteToDocx(noteItemInstance.note)
+
+				response.setContentType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+				response.setHeader("Content-disposition", "attachment;filename=${noteItemInstance.title}.docx")
+				SaveToZipFile saver = new SaveToZipFile(wp)
+				saver.save( response.getOutputStream() )
+		}
+	}
+
+	/**
+	 * export note to pdf
+	 */
+	def exportToPdf(){
+
+		def noteItemInstance = NoteItem.get(params.id)
+		if (!noteItemInstance) {
+			flash.message = "${message(code: 'default.not.found.message', args: [message(code: 'noteItem.label', default: 'Note'), params.id])}"
+			redirect(action: "show")
+		}
+		else {
+			def wp = noteExportService.convertNoteToDocx(noteItemInstance.note)
+
+			response.setContentType("application/pdf");
+			response.setHeader("Content-disposition", "attachment;filename=${noteItemInstance.title}.pdf")
+
+			def c = noteExportService.convertDocxToPdf(wp)
+			c.output(response.getOutputStream(), new PdfSettings() );
+		}
+	}
+
+
+
+	def addToSamples(){
+
+		def noteItemInstance = NoteItem.get(params.id as long)
+		def dataObj = DataObject.get(params.dataObject)
+
+		if(!noteItemInstance.addToDataObjects(dataObj).save(flush:true))
+			flash.message = "Could not add ${dataObj} to ${noteItemInstance}."
+
+		redirect(action: "show", id: params.id, params: [bodyOnly: params.bodyOnly?:false])
+	}
+
+	def removeFromSamples(){
+		def noteItemInstance = NoteItem.get(params.id as long)
+		def dataObj = DataObject.get(params.dataObject)
+
+		if(!noteItemInstance.removeFromDataObjects(dataObj).save(flush:true))
+			flash.message = "Could not remove ${dataObj} from ${noteItemInstance}"
+
+		redirect(action: "show", id: params.id, params: [bodyOnly: params.bodyOnly?:false])
+	}
+
+	def addToNotebooks(){
+
+		def noteItemInstance = NoteItem.get(params.id as long)
+		def notebook = Notebook.get(params.selectAddTo as long)
+
+		if(!noteItemInstance.addToNotebooks(notebook).save(flush:true))
+			flash.message = "Could not add ${notebook} to ${noteItemInstance}."
+
+		redirect(action: "show", id: params.id, params: [bodyOnly: params.bodyOnly?:false])
+	}
+
+	def removeFromNotebooks(){
+		def noteItemInstance = NoteItem.get(params.id as long)
+		def notebook = Notebook.get(params.notebookId)
+
+		if(!noteItemInstance.removeFromNotebooks(notebook).save(flush:true))
+			flash.message = "Could not remove ${notebook} from ${noteItemInstance}"
+
+		redirect(action: "show", id: params.id, params: [bodyOnly: params.bodyOnly?:false])
+	}
+
+
+	def addToShared(){
+
+		def noteItemInstance = NoteItem.get(params.id as long)
+		def user = User.get(params.user)
+
+		if(!noteItemInstance.addToShared(user).save(flush:true))
+			flash.message = "Could not add ${user} to ${noteItemInstance}."
+
+		redirect(action: "show", id: params.id, params: [bodyOnly: params.bodyOnly?:false])
+	}
+
+	def removeFromShared(){
+		def noteItemInstance = NoteItem.get(params.id as long)
+		def user = User.get(params.user)
+
+		if(!noteItemInstance.removeFromShared(user).save(flush:true))
+			flash.message = "Could not remove ${user} from ${noteItemInstance}"
+
+		redirect(action: "show", id: params.id, params: [bodyOnly: params.bodyOnly?:false])
+	}
+
 
     def create() {
         [noteItemInstance: new NoteItem(params), bodyOnly: true]
     }
 
     def save() {
+		params.accessLevel = "user"
         def noteItemInstance = new NoteItem(params)
         if (!noteItemInstance.save(flush: true, failOnError:true)) {
             render(view: "create", model: [noteItemInstance: noteItemInstance])
@@ -90,7 +265,48 @@ class NoteItemController {
 		}else if(springSecurityService.currentUser == noteItemInstance.supervisor){
 			supervisor = true
 		}
-		[noteItemInstance: noteItemInstance, bodyOnly: true, creator: creator, supervisor: supervisor]
+
+		/* validate signatures */
+		def validAuthorSignature
+		def validSupervisorSignature
+
+		if(noteItemInstance.authorSignature)
+			validAuthorSignature = noteEncryptionService.validateNote(noteItemInstance.creator, noteItemInstance.authorSignature, noteItemInstance.finalizedDate.getDateString(), noteItemInstance.note)
+		if(noteItemInstance.supervisorSignature)
+			validSupervisorSignature = noteEncryptionService.validateNote(noteItemInstance.supervisor, noteItemInstance.supervisorSignature, noteItemInstance.finalizedDate.getDateString() +noteItemInstance.supervisorSignedDate.getDateString(), noteItemInstance.note)
+
+		def users = User.list()
+		users.remove(springSecurityService.currentUser)
+		users.removeAll(noteItemInstance.shared)
+
+		def notebooks = Notebook.list()
+		notebooks.removeAll(noteItemInstance.notebooks)
+
+		def username = springSecurityService.currentUser.username
+
+		def dataObjects = DataObject.withCriteria{
+			createAlias("shared", "sh", CriteriaSpecification.LEFT_JOIN)
+			createAlias("creator", "cr", CriteriaSpecification.LEFT_JOIN)
+			or{
+				eq("cr.username", username)
+				isNull("accessLevel")
+				eq("accessLevel", "open")
+				eq 'sh.username', username
+
+			}
+		}
+		dataObjects.removeAll(noteItemInstance.dataObjects)
+
+		def projects = Project.list()
+		projects.removeAll(noteItemInstance.projects)
+
+		[noteItemInstance: noteItemInstance, bodyOnly: true,
+				validAuthorSignature: validAuthorSignature,
+				validSupervisorSignature: validSupervisorSignature,
+				users: users, dataObjects: dataObjects,
+				notebooks: notebooks,
+				currentUser: username, projects: projects,
+		 		creator: creator, supervisor: supervisor]
     }
 
     def edit(Long id) {
@@ -169,7 +385,6 @@ class NoteItemController {
     }
 
 	def signNote(Long id){
-		println(id + " signNote")
 		def noteItemInstance = NoteItem.get(id)
 		if (!noteItemInstance) {
 			flash.message = message(code: 'default.not.found.message', args: [message(code: 'noteItem.label', default: 'NoteItem'), id])
@@ -183,9 +398,8 @@ class NoteItemController {
 		/* Note exists and user has access */
 		User currentUser = springSecurityService.currentUser
 		
-		def hasKeys = UserPGP.countByOwner(currentUser)
 		if(UserPGP.countByOwner(currentUser) == 0){
-			println("User does not have any keys!")
+			flash.message = "User ${currentUser} does not have any keys!"
 			redirect(action: "createKeys", id: id, params:[bodyOnly: true])
 			return
 		}
@@ -203,7 +417,6 @@ class NoteItemController {
 	}
 	
 	def signNoteData(Long id){
-		println(id + " signNoteData")
 		def noteItemInstance = NoteItem.get(id)
 		if (!noteItemInstance) {
 			flash.message = message(code: 'default.not.found.message', args: [message(code: 'noteItem.label', default: 'NoteItem'), id])
@@ -226,13 +439,8 @@ class NoteItemController {
 			redirect(action: "signNote", id: id, params:[bodyOnly: true])
 			return
 		}
-		
-		/* Get secret key for user */
-		UserPGP userKeys = UserPGP.findByOwner(currentUser)
-		String secretKey = userKeys.secretKey
-		
-		PGPCryptoBC pgp = new PGPCryptoBC()
-		pgp.setSecretKey(secretKey)
+
+		Date currentDate = new Date()
 
 		if(noteItemInstance.creator == currentUser){
 			/* If the author is signing, a supervisor is added to the note */
@@ -243,12 +451,15 @@ class NoteItemController {
 			/* Add the supervisor to the noteItem */
 			noteItemInstance.properties = params
 			noteItemInstance.supervisor = supervisor
-			
-			noteItemInstance.authorSignedData = pgp.signData(noteItemInstance.note,passphrase)
 			noteItemInstance.status = 'final'
+
+			noteItemInstance.finalizedDate = currentDate
+			noteItemInstance.authorSignature = noteEncryptionService.signNote(currentUser, currentDate.getDateString(), noteItemInstance.note, passphrase)
 		}else if(noteItemInstance.supervisor == currentUser){
-			noteItemInstance.supervisorSignedData = pgp.signData(noteItemInstance.note,passphrase)
+			noteItemInstance.supervisorSignedDate = currentDate
+			noteItemInstance.supervisorSignature = noteEncryptionService.signNote(currentUser, noteItemInstance.finalizedDate.getDateString() + currentDate.getDateString(), noteItemInstance.note, passphrase)
 			noteItemInstance.status = 'signed'
+			println noteItemInstance.finalizedDate
 		}
 		if (!noteItemInstance.save(flush: true)) {
 			flash.message = "Could not save!"
@@ -260,12 +471,10 @@ class NoteItemController {
 	}
 	
 	def createKeys(Long id){
-		println(id + "create keys")
 		[UserPGPInstance: new UserPGP(params), noteId: id, bodyOnly: true]
 	}
 	
 	def saveKeys(Long id){
-		println(id + "save keys")
 		User currentUser = springSecurityService.currentUser
 		
 		String passphrase = params.password
