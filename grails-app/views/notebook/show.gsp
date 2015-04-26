@@ -4,7 +4,7 @@
 <html>
 <head>
 	<g:setProvider library="prototype"/>
-	<meta name="layout" content="${params.bodyOnly?'body':'main'}" />
+	<meta name="layout" content="${params.bodyOnly?'body':bodyOnly?'body':'main'}" />
 	<g:set var="entityName" value="${message(code: 'notebook.label', default: 'Notebook')}" />
 	<title><g:message code="default.show.label" args="[entityName]" /></title>
 	<r:require module="export"/>
@@ -27,8 +27,8 @@
 <div class="nav" role="navigation">
 	<ul>
 		<li><a class="home" href="${createLink(uri: '/')}"><g:message code="default.home.label"/></a></li>
-		<li><g:remoteLink params="${[bodyOnly: true, notebook: notebookInstance]}" update="body" controller="noteItem" class="create" action="create">Add new note</g:remoteLink></li>
-		<li><g:remoteLink params="${[bodyOnly: true]}" update="body" class="edit" action="edit"><g:message code="default.edit.label" args="[entityName]" /></g:remoteLink></li>
+		<li><g:remoteLink params="${[bodyOnly: true, addToNotebook: notebookInstance.id]}" update="body" controller="noteItem" class="create" action="create">Add new note</g:remoteLink></li>
+		<li><g:remoteLink params="${[bodyOnly: true]}" update="body" class="edit" action="edit" id="${notebookInstance.id}"><g:message code="default.edit.label" args="[entityName]" /></g:remoteLink></li>
 		<li><g:submitToRemote params="${[bodyOnly: true]}" update="body" action="delete" name="delete" class="delete" value="${message(code: 'default.button.delete.label', default: 'Delete')}" before="if(!confirm('Are you sure yu want to delete this notebook?')) return false"/></li>
 	</ul>
 </div>
@@ -37,6 +37,24 @@
 	<g:if test="${flash.message}">
 		<div class="message" role="status">${flash.message}</div>
 	</g:if>
+</div>
+<div style="width:260px; padding-right:20px; padding-top: 20px; position:absolute; right:0;">
+	<gui:expandablePanel title="History" expanded="true" closable="true">
+		<table style="border: 0;">
+			<tbody>
+			<tr class="prop">
+				<td valign="top" class="name">Date created:</td>
+				<td valign="top" class="value"><g:formatDate date="${notebookInstance?.dateCreated}"/></td>
+			</tr>
+
+			<tr class="prop">
+				<td valign="top" class="name">Author:</td>
+				<td valign="top" class="value">${notebookInstance.creator}</td>
+			</tr>
+
+			</tbody>
+		</table>
+	</gui:expandablePanel>
 </div>
 <div class="pagination">
 	<g:remotePaginate total="${noteItemInstanceTotal?:0}" params="${params}" />

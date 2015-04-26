@@ -1,5 +1,6 @@
 package org.openlab.notes
 
+import org.codehaus.groovy.grails.commons.DefaultGrailsDomainClass
 import org.docx4j.openpackaging.io.SaveToZipFile
 import org.openlab.main.DataObject
 import crypttools.PGPCryptoBC
@@ -22,106 +23,95 @@ class NoteItemController {
     def noteAccessService
 	def noteEncryptionService
 	def noteExportService
+	def notebookAccessService
+	def exportService
 
     def index() {
         redirect(action: "list", params: params)
     }
 	def list(){
 		User loggedInUser = springSecurityService.currentUser
-		params.max = Math.min(params.max ? params.int('max') : 10, 100)
-		params.offset = params.offset?:0
+		
+		params.max = Math.min(params.max?params.int('max'):10, 100)
+		def noteItemInstanceList
+		def noteItemInstanceTotal
+		def noteItemInstanceCriteria
 
-		def noteItemInstanceList = NoteItem.findAllByCreator(loggedInUser, [sort: "id", order: "asc"])
-		def noteItemInstanceListTotal = noteItemInstanceList?.size()?:0
-		if (params.int('offset') > noteItemInstanceListTotal) params.offset = 0
+		if(!params.offset) params.offset = 0
 
-		if(noteItemInstanceListTotal > 0)
-		{
-			int rangeMin = Math.min(noteItemInstanceListTotal, params.int('offset'))
-			int rangeMax = Math.min(noteItemInstanceListTotal, (params.int('offset') + params.int('max')))
+		noteItemInstanceCriteria = NoteItem.createCriteria()
 
-			noteItemInstanceList = noteItemInstanceList.asList()
-			noteItemInstanceList.sort{ a,b -> a.id <=> b.id}
-			if(params.order == "desc") noteItemInstanceList = noteItemInstanceList.reverse()
+		noteItemInstanceList = noteItemInstanceCriteria.list(max: params.format?NoteItem.count():params.max, offset: params.format?0:params.offset) {
+			if(params.type == "own") creator{
+				eq('username', loggedInUser.username)
+			}
+			else if(params.type == "supervisor") supervisor {
+				eq('username', loggedInUser.username)
+			}
+			else if(params.creatorFilter) creator{
+				eq('username', params.creatorFilter)
+			}
+			if(params.supervisorFilter) supervisor{
+				eq('username', params.creatorFilter)
+			}
+			if(params.type == "shared") shared {
+				eq('username', loggedInUser.username)
+			}
+			if(params.status)
+			{
+				eq('status', params.status)
+			}
+			if(params.lastModifierFilter) lastModifier{
+				eq('username', params.lastModifierFilter)
+			}
+			if(params.projectFilter) projects{
+				eq('name', params.projectFilter)
+			}
+			if(params.sort) order(params.sort, params.order)
+		}
+		noteItemInstanceTotal = noteItemInstanceList.totalCount
 
-			noteItemInstanceList = noteItemInstanceList.asList().subList(rangeMin, rangeMax)
+		def exportParams = params.clone()
+		exportParams.offset = 0
+		exportParams.max = NoteItem.count()
+
+		if(params?.format && params.format != "html"){
+			noteItemInstanceList = NoteItem.list(exportParams)
+			noteItemInstanceTotal = NoteItem.count()
+
+			response.contentType = grailsApplication.config.grails.mime.types[params.format]
+			response.setHeader("Content-disposition", "attachment; filename=noteItemInstance.${params.extension}")
+
+			def notallowed = ["dbName", "springSecurityService", "typeLabel", "beforeInsert", "beforeUpdate", "_methods_"]
+			def fields = new DefaultGrailsDomainClass(NoteItem.class).persistentProperties.findAll{ !notallowed.contains(it.name) }.collect{it.name}
+
+			exportService.export(params.format, response.outputStream, noteItemInstanceList, fields?:[], [:], [:], [:])
 		}
 
-		[noteItemInstanceList: noteItemInstanceList, noteItemInstanceTotal: noteItemInstanceListTotal, bodyOnly: true]	}
-
-	def listSharedNotes(){
-		User loggedInUser = springSecurityService.currentUser
-		params.max = Math.min(params.max ? params.int('max') : 10, 100)
-		params.offset = params.offset?:0
-
-		def noteItemInstanceList = NoteItem.withCriteria{
-			createAlias("shared", "sh", CriteriaSpecification.LEFT_JOIN)
-			eq 'sh.username', loggedInUser.username
-			order("id", "asc")
-		}
-		def noteItemInstanceListTotal = noteItemInstanceList?.size()?:0
-		if (params.int('offset') > noteItemInstanceListTotal) params.offset = 0
-
-		if(noteItemInstanceListTotal > 0)
-		{
-			int rangeMin = Math.min(noteItemInstanceListTotal, params.int('offset'))
-			int rangeMax = Math.min(noteItemInstanceListTotal, (params.int('offset') + params.int('max')))
-
-			noteItemInstanceList = noteItemInstanceList.asList()
-			noteItemInstanceList.sort{ a,b -> a.id <=> b.id}
-			if(params.order == "desc") noteItemInstanceList = noteItemInstanceList.reverse()
-
-			noteItemInstanceList = noteItemInstanceList.asList().subList(rangeMin, rangeMax)
-		}
-
-		render view: "list", model: [noteItemInstanceList: noteItemInstanceList, noteItemInstanceTotal: noteItemInstanceListTotal, bodyOnly: true]
+		[noteItemInstanceList: noteItemInstanceList, noteItemInstanceTotal: noteItemInstanceTotal, bodyOnly: true]
 	}
 
-	def listSignedAsSupervisor(){
-		User loggedInUser = springSecurityService.currentUser
-		params.max = Math.min(params.max ? params.int('max') : 10, 100)
-		params.offset = params.offset?:0
+	def listOwn(){
+		params.type = "own"
+		redirect(action: "list", params: params)
+	}
 
-		def noteItemInstanceList = NoteItem.findAllBySupervisorAndStatus(loggedInUser, "signed", [sort: "id", order: "asc"])
-		def noteItemInstanceListTotal = noteItemInstanceList?.size()?:0
-		if (params.int('offset') > noteItemInstanceListTotal) params.offset = 0
+	def listSharedNotes(){
+		params.type = "shared"
+		redirect(action: "list", params: params)
+	}
 
-		if(noteItemInstanceListTotal > 0)
-		{
-			int rangeMin = Math.min(noteItemInstanceListTotal, params.int('offset'))
-			int rangeMax = Math.min(noteItemInstanceListTotal, (params.int('offset') + params.int('max')))
-
-			noteItemInstanceList = noteItemInstanceList.asList()
-			noteItemInstanceList.sort{ a,b -> a.id <=> b.id}
-			if(params.order == "desc") noteItemInstanceList = noteItemInstanceList.reverse()
-
-			noteItemInstanceList = noteItemInstanceList.asList().subList(rangeMin, rangeMax)
-		}
-
-		render view: "list", model: [noteItemInstanceList: noteItemInstanceList, noteItemInstanceTotal: noteItemInstanceListTotal, bodyOnly: true]	}
+	def listSignedAsSupervisor() {
+		params.type = "supervisor"
+		params.status = "signed"
+		redirect(action: "list", params: params)
+	}
 
 	def listNotesToSign(){
-		User loggedInUser = springSecurityService.currentUser
-		params.max = Math.min(params.max ? params.int('max') : 10, 100)
-		params.offset = params.offset?:0
-
-		def noteItemInstanceList = NoteItem.findAllBySupervisorAndStatus(loggedInUser, "final", [sort: "id", order: "asc"])
-		def noteItemInstanceListTotal = noteItemInstanceList?.size()?:0
-		if (params.int('offset') > noteItemInstanceListTotal) params.offset = 0
-
-		if(noteItemInstanceListTotal > 0)
-		{
-			int rangeMin = Math.min(noteItemInstanceListTotal, params.int('offset'))
-			int rangeMax = Math.min(noteItemInstanceListTotal, (params.int('offset') + params.int('max')))
-
-			noteItemInstanceList = noteItemInstanceList.asList()
-			noteItemInstanceList.sort{ a,b -> a.id <=> b.id}
-			if(params.order == "desc") noteItemInstanceList = noteItemInstanceList.reverse()
-
-			noteItemInstanceList = noteItemInstanceList.asList().subList(rangeMin, rangeMax)
-		}
-
-		render view: "list", model: [noteItemInstanceList: noteItemInstanceList, noteItemInstanceTotal: noteItemInstanceListTotal, bodyOnly: true]	}
+		params.type = "supervisor"
+		params.status = "final"
+		redirect(action: "list", params: params)
+	}
 
 	/**
 	 * export note to docx
@@ -230,16 +220,18 @@ class NoteItemController {
 		redirect(action: "show", id: params.id, params: [bodyOnly: params.bodyOnly?:false])
 	}
 
-
     def create() {
-        [noteItemInstance: new NoteItem(params), bodyOnly: true]
+		def noteItemInstance = new NoteItem(params)
+		def notebooksWithAccess = notebookAccessService.listOfNotebooksWithAccess()
+        [noteItemInstance: noteItemInstance, selectedNotebook: params.addToNotebook, notebooksWithAccess: notebooksWithAccess, bodyOnly: true]
     }
 
     def save() {
 		params.accessLevel = "user"
         def noteItemInstance = new NoteItem(params)
-        if (!noteItemInstance.save(flush: true, failOnError:true)) {
-            render(view: "create", model: [noteItemInstance: noteItemInstance])
+
+        if (!noteItemInstance.save(flush: true)) {
+            render(view: "create", model: [noteItemInstance: noteItemInstance, bodyOnly: true])
             return
         }
 

@@ -4,7 +4,7 @@
 <html>
 <head>
 	<g:setProvider library="prototype"/>
-	<meta name="layout" content="${params.bodyOnly?'body':'main'}" />
+	<meta name="layout" content="${params.bodyOnly?'body':bodyOnly?'body':'main'}" />
 	<g:set var="entityName" value="${message(code: 'noteItem.label', default: 'NoteItem')}" />
 	<title><g:message code="default.list.label" args="[entityName]" /></title>
 	<r:require module="export"/>
@@ -41,16 +41,19 @@
 			<g:hiddenField name="bodyOnly" value="${true}"/>
 			Results per page: <g:select name="max" value="${params.max?:10}" from="${10..100}" class="range"/>
 
-			Creator: <g:select name="creatorFilter" from="${org.openlab.security.User.list().collect{it.username}}"
-							   value="${params.creatorFilter?:''}" noSelection="['':'']"/>
+			Creator (Author): <g:select name="creatorFilter" from="${org.openlab.security.User.list().collect{it.username}}"
+							   value="${params.creatorFilter?:''}" noSelection="['':'']" class="select2 many-to-many"/>
+
+			Supervisor: <g:select name="creatorFilter" from="${org.openlab.security.User.list().collect{it.username}}"
+										value="${params.supervisorFilter?:''}" noSelection="['':'']" class="select2 many-to-many"/>
 
 
 			Last Modifier: <g:select name="lastModifierFilter" from="${org.openlab.security.User.list().collect{it.username}}"
-									 value="${params.lastModifierFilter?:''}" noSelection="['':'']"/>
+									 value="${params.lastModifierFilter?:''}" noSelection="['':'']" class="select2 many-to-many"/>
 
 
 			Project: <g:select name="projectFilter" from="${org.openlab.main.Project.list().collect{it.name}}"
-							   value="${params.projectFilter?:''}" noSelection="['':'']"/>
+							   value="${params.projectFilter?:''}" noSelection="['':'']" class="select2 many-to-many"/>
 
 			<g:submitButton name="Filter"/>
 		</g:formRemote>

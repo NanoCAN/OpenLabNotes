@@ -1,4 +1,4 @@
-<%@ page import="org.openlab.notes.NoteItem" %>
+<%@ page import="org.openlab.notes.Notebook; org.openlab.notes.NoteItem" %>
 
 		<script>
 		tinymce.init({
@@ -45,6 +45,21 @@
 				<g:textField name="title" value="${noteItemInstance?.title}"/>
 			</td>
 		</tr>
+	<tr>
+
+		<td>
+			<div class="fieldcontain ${hasErrors(bean: noteItemInstance, field: 'notebooks', 'error')} ">
+				<label for="notes">
+					<g:message code="noteItem.notebooks.label" default="Notebooks" />
+
+				</label>
+			</div>
+		</td>
+		<td>
+			<g:select name="notebooks" from="${notebooksWithAccess}" multiple="multiple" optionKey="id" size="5" value="${selectedNotebook?:noteItemInstance?.notebooks*.id}" class="select2 many-to-many"/>
+		</td>
+	</tr>
+
 		<tr>
 			<td>
 				<div class="fieldcontain ${hasErrors(bean: noteItemInstance, field: 'note', 'error')} ">

@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<meta name="layout" content="${params.bodyOnly?'body':'main'}" />
+		<meta name="layout" content="${params.bodyOnly?'body':bodyOnly?'body':'main'}" />
 		<g:set var="entityName" value="${message(code: 'noteItem.label', default: 'NoteItem')}" />
 		<title><g:message code="default.create.label" args="[entityName]" /></title>
 	</head>

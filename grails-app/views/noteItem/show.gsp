@@ -3,7 +3,7 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<meta name="layout" content="${params.bodyOnly?'body':'main'}" />
+		<meta name="layout" content="${params.bodyOnly?'body':bodyOnly?'body':'main'}" />
 		<g:set var="entityName" value="${message(code: 'noteItem.label', default: 'NoteItem')}" />
 		<title><g:message code="default.show.label" args="[entityName]" /></title>
 	</head>
@@ -35,6 +35,7 @@
 			<div style="padding:20px;">
 				<g:form>
 				<fieldset class="buttons">
+					<g:remoteLink params="${[bodyOnly: true]}" update="body" class="create" action="create"><g:message code="default.new.label" args="[entityName]" /></g:remoteLink>
 					<g:hiddenField name="id" value="${noteItemInstance?.id}" />
 					<%-- if note is draft and the user is the author, show edit,save and delete options --%>
 					<g:if test="${creator}">
