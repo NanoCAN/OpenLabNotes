@@ -29,9 +29,8 @@
 			<h1>Show Note ${noteItemInstance.title}</h1>
 <%--			<h1><g:message code="default.show.label" args="[entityName]" /></h1>--%>
 			<g:if test="${flash.message}">
-			<div class="message" role="status">${flash.message}</div>
+				<div class="message" role="status">${flash.message}</div>
 			</g:if>
-
 			<div style="padding:20px;">
 				<g:form>
 				<fieldset class="buttons">
@@ -42,8 +41,13 @@
 						<g:if test="${noteItemInstance?.status == 'draft'}">
 							<g:remoteLink params="${[bodyOnly: true]}" update="body" class="edit" action="edit" id="${noteItemInstance.id}"><g:message code="default.button.edit.label" default="Edit" /></g:remoteLink>
 							<g:remoteLink params="${[bodyOnly: true]}" update="body" class="save" action="signNote" id="${noteItemInstance.id}"><g:message code="default.button.authorSign.label" default="Finalize" /></g:remoteLink>
-							<g:submitToRemote params="${[bodyOnly: true]}" update="body" action="delete" name="delete" class="delete" value="${message(code: 'default.button.delete.label', default: 'Delete')}" before="if(!confirm('Are you sure yu want to delete this note?')) return false"/>
+							<g:submitToRemote params="${[bodyOnly: true]}" update="body" action="delete" name="delete" class="delete" value="${message(code: 'default.button.delete.label', default: 'Delete')}" before="if(!confirm('Are you sure you want to delete this note?')) return false"/>
 						</g:if>
+						<g:else>
+							<g:if test="${noteItemInstance?.accessLevel != 'open'}">
+								<g:submitToRemote params="${[bodyOnly: true]}" update="body" action="makePublic" name="makePublic" class="create" value="${message(code: 'default.button.publish.label', default: 'Make note available to all users.')}" before="if(!confirm('Are you sure you want to make this note accessible to all users?')) return false"/>
+							</g:if>
+						</g:else>
 					</g:if>
 					<g:elseif test="${supervisor}">
 						<g:if test="${noteItemInstance?.status == 'final'}">
@@ -56,6 +60,9 @@
 				</fieldset>
 			</g:form>
 				</div>
+			<g:if test="${noteItemInstance.accessLevel == "open"}">
+				<div class="message" role="status">Note has been published and can be accessed by all users.</div>
+			</g:if>
 			<g:if test="${creator}">
 				<g:if test="${noteItemInstance?.status == 'final'}">
 				 	<div class="message">Pending supervisor signature, note can not be edited or deleted.</div>
@@ -69,9 +76,9 @@
 					<div class="message">This note is signed by you and the author.</div>
 				</g:if>
 			</g:elseif>
-			<g:else>
+			<g:elseif test="${noteItemInstance.accessLevel != "open"}">
 				<div class="message">This note has been shared with you.</div>
-			</g:else>
+			</g:elseif>
 
 			<div style="width:260px; padding-right:20px; padding-top: 20px; position:absolute; right:0;">
 				<gui:expandablePanel title="History" expanded="true" closable="true">

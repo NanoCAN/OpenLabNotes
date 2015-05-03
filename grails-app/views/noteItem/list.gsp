@@ -44,7 +44,7 @@
 			Creator (Author): <g:select name="creatorFilter" from="${org.openlab.security.User.list().collect{it.username}}"
 							   value="${params.creatorFilter?:''}" noSelection="['':'']" class="select2 many-to-many"/>
 
-			Supervisor: <g:select name="creatorFilter" from="${org.openlab.security.User.list().collect{it.username}}"
+			Supervisor: <g:select name="supervisorFilter" from="${org.openlab.security.User.list().collect{it.username}}"
 										value="${params.supervisorFilter?:''}" noSelection="['':'']" class="select2 many-to-many"/>
 
 
@@ -52,8 +52,12 @@
 									 value="${params.lastModifierFilter?:''}" noSelection="['':'']" class="select2 many-to-many"/>
 
 
-			Project: <g:select name="projectFilter" from="${org.openlab.main.Project.list().collect{it.name}}"
+			<br/><br/>Project: <g:select name="projectFilter" from="${org.openlab.main.Project.list().collect{it.name}}"
 							   value="${params.projectFilter?:''}" noSelection="['':'']" class="select2 many-to-many"/>
+
+			Date: 	<g:select name="dateType" from="['Created', 'Updated', 'Finalized','Signed']" value="${params.dateType?:'Created'}"/>
+					<g:datePicker name="afterDateFilter" value="${params.afterDateFilter?:new Date()}" noSelection="['':'-Choose-']" precision="day"/>
+					- <g:datePicker name="beforeDateFilter" value="${params.beforeDateFilter?:new Date()}" noSelection="['':'-Choose-']" precision="day"/>
 
 			<g:submitButton name="Filter"/>
 		</g:formRemote>

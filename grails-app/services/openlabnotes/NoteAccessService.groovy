@@ -28,7 +28,9 @@ class NoteAccessService {
     }
 
     def grantAccess(NoteItem noteItemInstance) {
-        if (springSecurityService.currentUser == noteItemInstance.creator) {
+        if(noteItemInstance.accessLevel == "open"){
+            return true
+        } else if (springSecurityService.currentUser == noteItemInstance.creator) {
             return true
         } else if (springSecurityService.currentUser == noteItemInstance.supervisor) {
             return true

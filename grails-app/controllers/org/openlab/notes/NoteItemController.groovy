@@ -9,8 +9,6 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.hibernate.criterion.CriteriaSpecification
 import org.openlab.main.Project
 import org.docx4j.convert.out.pdf.viaXSLFO.PdfSettings
-import org.docx4j.openpackaging.packages.WordprocessingMLPackage
-
 
 class NoteItemController {
 
@@ -41,18 +39,25 @@ class NoteItemController {
 
 		noteItemInstanceCriteria = NoteItem.createCriteria()
 
+		def dateFilterOptions = ['Created': 'dateCreated', 'Updated':'lastUpdated', 'Finalized': 'finalizedDate', 'Signed': 'supervisorSignedDate']
 		noteItemInstanceList = noteItemInstanceCriteria.list(max: params.format?NoteItem.count():params.max, offset: params.format?0:params.offset) {
+
+			if(params.beforeDateFilter)
+				le(dateFilterOptions[params.dateType], params.beforeDateFilter)
+			if(params.afterDateFilter)
+				ge(dateFilterOptions[params.dateType], params.afterDateFilter)
+
 			if(params.type == "own") creator{
 				eq('username', loggedInUser.username)
 			}
 			else if(params.type == "supervisor") supervisor {
 				eq('username', loggedInUser.username)
 			}
-			else if(params.creatorFilter) creator{
-				eq('username', params.creatorFilter)
+			if(params.creatorFilter) creator{
+				eq('username', 'admin')//params.creatorFilter)
 			}
 			if(params.supervisorFilter) supervisor{
-				eq('username', params.creatorFilter)
+				eq('username', params.supervisorFilter)
 			}
 			if(params.type == "shared") shared {
 				eq('username', loggedInUser.username)
@@ -154,7 +159,25 @@ class NoteItemController {
 		}
 	}
 
-
+	def makePublic(){
+		def noteItemInstance = NoteItem.get(params.id as long)
+		if(noteItemInstance.creator == springSecurityService.currentUser)
+		{
+			noteItemInstance.accessLevel = "open"
+			if(noteItemInstance.save(flush: true)){
+				flash.message = "Note can now be accessed by all users."
+				redirect(action: "show")
+			}
+			else{
+				flash.message = "Note could not be published."
+				redirect(action: "show")
+			}
+		}
+		else{
+			flash.message = "Only the author of a note has the right to make it available to all users."
+			redirect(action: "show")
+		}
+	}
 
 	def addToSamples(){
 
@@ -284,10 +307,10 @@ class NoteItemController {
 				isNull("accessLevel")
 				eq("accessLevel", "open")
 				eq 'sh.username', username
-
 			}
 		}
 		dataObjects.removeAll(noteItemInstance.dataObjects)
+		dataObjects.removeAll(dataObjects.findAll{it.type == "noteItem"})
 
 		def projects = Project.list()
 		projects.removeAll(noteItemInstance.projects)
@@ -451,7 +474,6 @@ class NoteItemController {
 			noteItemInstance.supervisorSignedDate = currentDate
 			noteItemInstance.supervisorSignature = noteEncryptionService.signNote(currentUser, noteItemInstance.finalizedDate.getDateString() + currentDate.getDateString(), noteItemInstance.note, passphrase)
 			noteItemInstance.status = 'signed'
-			println noteItemInstance.finalizedDate
 		}
 		if (!noteItemInstance.save(flush: true)) {
 			flash.message = "Could not save!"
