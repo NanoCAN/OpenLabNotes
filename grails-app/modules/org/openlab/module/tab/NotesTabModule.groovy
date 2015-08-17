@@ -31,12 +31,11 @@ package org.openlab.module.tab
 
 import org.openlab.module.*;
 import org.openlab.genetracker.*;
-import org.codehaus.groovy.grails.commons.ApplicationHolder
 import org.openlab.notes.NoteItem
 
 class NotesTabModule implements Module{
 
-	def grailsApplication = ApplicationHolder.application
+	def grailsApplication = grails.util.Holders.grailsApplication
 	
 	def getPluginName() {
 		"open-lab-notes"

@@ -28,10 +28,10 @@ grails.project.dependency.resolution = {
         //mavenRepo "http://repository.jboss.com/maven2/"
     }
     dependencies {
-        build 'org.bouncycastle:bcpg-jdk15on:1.50'
+        /*build 'org.bouncycastle:bcpg-jdk15on:1.50'
         build 'org.bouncycastle:bcprov-jdk15on:1.50'
         compile "org.docx4j:docx4j-ImportXHTML:3.2.2"
-        compile "net.sf.jtidy:jtidy:r938"
+        compile "net.sf.jtidy:jtidy:r938"   */
 
         // specify dependencies here under either 'build', 'compile', 'runtime', 'test' or 'provided' scopes eg.
 		

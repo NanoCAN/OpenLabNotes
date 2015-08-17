@@ -310,7 +310,8 @@ class NoteItemController {
 			}
 		}
 		dataObjects.removeAll(noteItemInstance.dataObjects)
-		dataObjects.removeAll(dataObjects.findAll{it.type == "noteItem"})
+		dataObjects.removeAll(dataObjects.findAll{it.type == "n" +
+			"oteItem"})
 
 		def projects = Project.list()
 		projects.removeAll(noteItemInstance.projects)
